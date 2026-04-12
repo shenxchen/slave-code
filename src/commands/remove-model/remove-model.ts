@@ -1,6 +1,7 @@
 import type { LocalCommandCall } from '../../types/command.js'
 import { saveGlobalConfig, getGlobalConfig } from '../../utils/config.js'
 import { readCustomApiStorage, writeCustomApiStorage, getCurrentProfile } from '../../utils/customApiStorage.js'
+import { setMainLoopModelOverride } from '../../bootstrap/state.js'
 
 export const call: LocalCommandCall = async (args, _context) => {
   const targetModel = args.trim()
@@ -52,12 +53,15 @@ export const call: LocalCommandCall = async (args, _context) => {
     },
   })
 
+  // 如果删除的是当前使用的模型，同步更新内存状态
   if (currentModel === targetModel) {
     if (nextCurrentModel) {
       process.env.ANTHROPIC_MODEL = nextCurrentModel
     } else {
       delete process.env.ANTHROPIC_MODEL
     }
+    // 同步 mainLoopModelOverride，确保下次 API 调用使用正确的模型
+    setMainLoopModelOverride(nextCurrentModel || null)
   }
 
   return {

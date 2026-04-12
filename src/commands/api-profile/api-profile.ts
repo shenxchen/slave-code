@@ -8,6 +8,8 @@ import {
   renameProfile,
   getCurrentProfile,
 } from '../../utils/customApiStorage.js'
+import { setMainLoopModelOverride } from '../../bootstrap/state.js'
+import { saveGlobalConfig } from '../../utils/config.js'
 
 export const call: LocalCommandCall = async (args, _context) => {
   const parts = args.trim().split(/\s+/)
@@ -108,9 +110,27 @@ function handleUse(name: string) {
     delete process.env.ANTHROPIC_MODEL
   }
 
+  // 同步内存中的模型状态，确保下次 API 调用使用新 profile 的模型
+  setMainLoopModelOverride(profile.model || null)
+
+  // 同时更新 globalConfig 中的 customApiEndpoint（保持一致性）
+  saveGlobalConfig(current => ({
+    ...current,
+    customApiEndpoint: {
+      ...current.customApiEndpoint,
+      provider: profile.provider,
+      openaiCompatMode: profile.openaiCompatMode,
+      baseURL: profile.baseURL,
+      apiKey: profile.apiKey,
+      model: profile.model,
+      savedModels: profile.savedModels,
+    },
+  }))
+
+  const modelInfo = profile.model ? ` (model: ${profile.model})` : ''
   return {
     type: 'text',
-    value: `Switched to profile '${profileName}'.`,
+    value: `Switched to profile '${profileName}'${modelInfo}.`,
   }
 }
 

@@ -32,6 +32,7 @@ import {
 } from './model.js'
 import { has1mContext } from '../context.js'
 import { getGlobalConfig } from '../config.js'
+import { getCurrentProfile } from '../customApiStorage.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -278,12 +279,20 @@ function getOpusPlanOption(): ModelOption {
 // @[MODEL LAUNCH]: Update the model picker lists below to include/reorder options for the new model.
 // Each user tier (ant, Max/Team Premium, Pro/Team Standard/Enterprise, PAYG 1P, PAYG 3P) has its own list.
 function getModelOptionsBase(fastMode = false): ModelOption[] {
+  // 优先从当前 profile 读取，然后回退到 globalConfig
+  const currentProfile = getCurrentProfile()
   const customConfiguredModel =
+    currentProfile.model?.trim() ||
     getGlobalConfig().customApiEndpoint?.model?.trim() ||
     process.env.ANTHROPIC_MODEL?.trim()
-  const savedModels = (getGlobalConfig().customApiEndpoint?.savedModels ?? [])
+  const profileSavedModels = (currentProfile.savedModels ?? [])
     .map(model => model.trim())
     .filter(Boolean)
+  const globalSavedModels = (getGlobalConfig().customApiEndpoint?.savedModels ?? [])
+    .map(model => model.trim())
+    .filter(Boolean)
+  // 合并 profile 和 globalConfig 的 savedModels，去重
+  const savedModels = [...new Set([...profileSavedModels, ...globalSavedModels])]
 
   if (customConfiguredModel || savedModels.length > 0) {
     const orderedModels = [

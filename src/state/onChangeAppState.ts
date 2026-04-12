@@ -18,6 +18,11 @@ import {
   type SessionExternalMetadata,
 } from '../utils/sessionState.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
+import {
+  readCustomApiStorage,
+  writeCustomApiStorage,
+  getCurrentProfile,
+} from '../utils/customApiStorage.js'
 import type { AppState } from './AppStateStore.js'
 
 // Inverse of the push below — restore on worker restart.
@@ -99,6 +104,33 @@ export function onChangeAppState({
     // Remove from settings
     updateSettingsForSource('userSettings', { model: undefined })
     setMainLoopModelOverride(null)
+
+    // 同时清除 customApiEndpoint 配置（用于多 profile 系统）
+    saveGlobalConfig(current => ({
+      ...current,
+      customApiEndpoint: {
+        ...current.customApiEndpoint,
+        model: undefined,
+      },
+    }))
+
+    // 清除 customApiStorage 中的当前 profile 模型
+    const storage = readCustomApiStorage()
+    const currentProfileName = storage.currentProfile || 'default'
+    const currentProfile = getCurrentProfile()
+    writeCustomApiStorage({
+      ...storage,
+      profiles: {
+        ...storage.profiles,
+        [currentProfileName]: {
+          ...currentProfile,
+          model: undefined,
+        },
+      },
+    })
+
+    // 清除环境变量
+    delete process.env.ANTHROPIC_MODEL
   }
 
   // mainLoopModel: add it to settings?
@@ -109,6 +141,36 @@ export function onChangeAppState({
     // Save to settings
     updateSettingsForSource('userSettings', { model: newState.mainLoopModel })
     setMainLoopModelOverride(newState.mainLoopModel)
+
+    // 同时保存到 customApiEndpoint（用于多 profile 系统）
+    const model = newState.mainLoopModel
+    saveGlobalConfig(current => ({
+      ...current,
+      customApiEndpoint: {
+        ...current.customApiEndpoint,
+        model,
+        savedModels: [...new Set([...(current.customApiEndpoint?.savedModels ?? []), model])],
+      },
+    }))
+
+    // 保存到 customApiStorage 的当前 profile
+    const storage = readCustomApiStorage()
+    const currentProfileName = storage.currentProfile || 'default'
+    const currentProfile = getCurrentProfile()
+    writeCustomApiStorage({
+      ...storage,
+      profiles: {
+        ...storage.profiles,
+        [currentProfileName]: {
+          ...currentProfile,
+          model,
+          savedModels: [...new Set([...(currentProfile.savedModels ?? []), model])],
+        },
+      },
+    })
+
+    // 更新环境变量
+    process.env.ANTHROPIC_MODEL = model
   }
 
   // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat

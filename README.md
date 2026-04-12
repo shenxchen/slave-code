@@ -10,6 +10,7 @@ Claude Code 的民间 Fork，支持多 API 后端切换和本地模型。
 - [本地模型配置](#本地模型配置)
 - [命令参考](#命令参考)
 - [核心功能](#核心功能)
+- [更新日志](#更新日志)
 
 ---
 
@@ -298,19 +299,31 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.0.0**
+当前版本：**SLAVE-v1.1.0**
+
+---
+
+## 更新日志
+
+### SLAVE-v1.1.0
+
+**修复多 API Profile 与模型管理的关键 Bug**
+
+核心问题：`customApiStorage`（多 Profile 存储）与 `globalConfig.customApiEndpoint`（旧单配置）之间存在数据不同步，导致模型切换、Profile 切换等操作后状态丢失或不一致。
+
+#### Bug 修复
+
+- **`/model` 命令选择模型后未持久化**：模型变更只更新了内存中的 `AppState`，没有同步写入 `customApiStorage`、`globalConfig` 和环境变量，导致重启后恢复为默认模型。现在通过 `onChangeAppState` 钩子自动完成三处持久化。(`src/state/onChangeAppState.ts`)
+
+- **`/api-profile use` 切换 Profile 后模型不同步**：切换 Profile 后只更新了环境变量，没有同步 `mainLoopModelOverride` 和 `globalConfig.customApiEndpoint`，导致实际 API 请求仍使用旧 Profile 的模型。现在切换时会完整同步所有状态。(`src/commands/api-profile/api-profile.ts`)
+
+- **模型选择器不读取当前 Profile 的模型列表**：`ModelPicker` 只从 `globalConfig.customApiEndpoint` 读取 `savedModels`，忽略了 `customApiStorage` 中当前 Profile 的自定义模型，导致不同 Profile 下的模型无法正确显示。现在优先从当前 Profile 读取并合并。(`src/utils/model/modelOptions.ts`)
+
+- **`/remove-model` 删除当前模型后内存不同步**：删除正在使用的模型后，没有调用 `setMainLoopModelOverride` 更新内存状态，导致后续 API 请求仍使用已删除的模型。现在会同步更新内存中的模型覆盖。(`src/commands/remove-model/remove-model.ts`)
 
 ---
 
 ## 常见问题
-
-### 如何切换回原版 Claude Code 的配置？
-
-设置环境变量：
-
-```bash
-export CLAUDE_CONFIG_DIR=~/.claude
-```
 
 ### Ollama 连接失败？
 
