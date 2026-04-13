@@ -10,17 +10,17 @@ import { normalizeCaseForComparison, pathInAllowedWorkingPath } from '../../../u
 import type { OptionWithDescription } from '../../CustomSelect/select.js';
 /**
  * Check if a path is within the project's .slave/ folder.
- * This is used to determine whether to show the special ".claude folder" permission option.
+ * This is used to determine whether to show the special ".slave folder" permission option.
  */
 export function isInClaudeFolder(filePath: string): boolean {
   const absolutePath = expandPath(filePath);
-  const claudeFolderPath = expandPath(`${getOriginalCwd()}/.claude`);
+  const claudeFolderPath = expandPath(`${getOriginalCwd()}/.slave`);
 
-  // Check if the path is within the project's .claude folder
+  // Check if the path is within the project's .slave folder
   const normalizedAbsolutePath = normalizeCaseForComparison(absolutePath);
   const normalizedClaudeFolderPath = normalizeCaseForComparison(claudeFolderPath);
 
-  // Path must start with the .claude folder path (and be inside it, not just the folder itself)
+  // Path must start with the .slave folder path (and be inside it, not just the folder itself)
   return normalizedAbsolutePath.startsWith(normalizedClaudeFolderPath + sep.toLowerCase()) ||
   // Also match case where sep is / on posix systems
   normalizedAbsolutePath.startsWith(normalizedClaudeFolderPath + '/');
@@ -28,12 +28,12 @@ export function isInClaudeFolder(filePath: string): boolean {
 
 /**
  * Check if a path is within the global ~/.slave/ folder.
- * This is used to determine whether to show the special ".claude folder" permission option
+ * This is used to determine whether to show the special ".slave folder" permission option
  * for files in the user's home directory.
  */
 export function isInGlobalClaudeFolder(filePath: string): boolean {
   const absolutePath = expandPath(filePath);
-  const globalClaudeFolderPath = join(homedir(), '.claude');
+  const globalClaudeFolderPath = join(homedir(), '.slave');
   const normalizedAbsolutePath = normalizeCaseForComparison(absolutePath);
   const normalizedGlobalClaudeFolderPath = normalizeCaseForComparison(globalClaudeFolderPath);
   return normalizedAbsolutePath.startsWith(normalizedGlobalClaudeFolderPath + sep.toLowerCase()) || normalizedAbsolutePath.startsWith(normalizedGlobalClaudeFolderPath + '/');

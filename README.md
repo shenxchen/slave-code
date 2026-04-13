@@ -299,11 +299,15 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.1.0**
+当前版本：**SLAVE-v1.1.1**
 
 ---
 
 ## 更新日志
+
+### SLAVE-v1.1.1
+
+完成所有层级中.slave配置目录的实现
 
 ### SLAVE-v1.1.0
 

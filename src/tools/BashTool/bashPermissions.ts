@@ -2039,7 +2039,7 @@ export async function bashToolHasPermission(
       // SECURITY: Compute compoundCommandHasCd from the full command, NOT
       // hardcode false. The pipe-handling path previously passed `false` here,
       // disabling the cd+redirect check at pathValidation.ts:821. Appending
-      // `| echo done` to `cd .claude && echo x > settings.json` routed through
+      // `| echo done` to `cd .slave && echo x > settings.json` routed through
       // this path with compoundCommandHasCd=false, letting the redirect write
       // to .slave/settings.json without the cd+redirect block firing.
       const pathResult = checkPathConstraints(

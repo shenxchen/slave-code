@@ -896,7 +896,7 @@ export const getMemoryFiles = memoize(
         )
 
         // Try reading .slave/CLAUDE.md (Project)
-        const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+        const dotClaudePath = join(dir, '.slave', 'CLAUDE.md')
         result.push(
           ...(await processMemoryFile(
             dotClaudePath,
@@ -907,7 +907,7 @@ export const getMemoryFiles = memoize(
         )
 
         // Try reading .slave/rules/*.md files (Project)
-        const rulesDir = join(dir, '.claude', 'rules')
+        const rulesDir = join(dir, '.slave', 'rules')
         result.push(
           ...(await processMdRules({
             rulesDir,
@@ -952,7 +952,7 @@ export const getMemoryFiles = memoize(
         )
 
         // Try reading .slave/CLAUDE.md from the additional directory
-        const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+        const dotClaudePath = join(dir, '.slave', 'CLAUDE.md')
         result.push(
           ...(await processMemoryFile(
             dotClaudePath,
@@ -963,7 +963,7 @@ export const getMemoryFiles = memoize(
         )
 
         // Try reading .slave/rules/*.md files from the additional directory
-        const rulesDir = join(dir, '.claude', 'rules')
+        const rulesDir = join(dir, '.slave', 'rules')
         result.push(
           ...(await processMdRules({
             rulesDir,
@@ -1264,7 +1264,7 @@ export async function getMemoryFilesForNestedDirectory(
         false,
       )),
     )
-    const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+    const dotClaudePath = join(dir, '.slave', 'CLAUDE.md')
     result.push(
       ...(await processMemoryFile(
         dotClaudePath,
@@ -1283,7 +1283,7 @@ export async function getMemoryFilesForNestedDirectory(
     )
   }
 
-  const rulesDir = join(dir, '.claude', 'rules')
+  const rulesDir = join(dir, '.slave', 'rules')
 
   // Process project unconditional .slave/rules/*.md files, which were not eagerly loaded
   // Use a separate processedPaths set to avoid marking conditional rule files as processed
@@ -1331,7 +1331,7 @@ export async function getConditionalRulesForCwdLevelDirectory(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<MemoryFileInfo[]> {
-  const rulesDir = join(dir, '.claude', 'rules')
+  const rulesDir = join(dir, '.slave', 'rules')
   return processConditionedMdRules(
     targetPath,
     rulesDir,
@@ -1372,11 +1372,11 @@ export async function processConditionedMdRules(
       return false
     }
 
-    // For Project rules: glob patterns are relative to the directory containing .claude
+    // For Project rules: glob patterns are relative to the directory containing .slave
     // For Managed/User rules: glob patterns are relative to the original CWD
     const baseDir =
       type === 'Project'
-        ? dirname(dirname(rulesDir)) // Parent of .claude
+        ? dirname(dirname(rulesDir)) // Parent of .slave
         : getOriginalCwd() // Project root for managed/user rules
 
     const relativePath = isAbsolute(targetPath)
@@ -1443,7 +1443,7 @@ export function isMemoryFilePath(filePath: string): boolean {
   // .md files in .slave/rules/ directories
   if (
     name.endsWith('.md') &&
-    filePath.includes(`${sep}.claude${sep}rules${sep}`)
+    filePath.includes(`${sep}.slave${sep}rules${sep}`)
   ) {
     return true
   }
