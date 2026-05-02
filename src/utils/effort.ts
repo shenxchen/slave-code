@@ -69,13 +69,8 @@ export function modelSupportsMaxEffort(model: string): boolean {
   if (supported3P !== undefined) {
     return supported3P
   }
-  if (model.toLowerCase().includes('opus-4-6')) {
-    return true
-  }
-  if (process.env.USER_TYPE === 'ant' && resolveAntModel(model)) {
-    return true
-  }
-  return false
+  // Allow all models to use max effort
+  return true
 }
 
 export function isEffortLevel(value: string): value is EffortLevel {
@@ -113,11 +108,9 @@ export function toPersistableEffort(
     value === 'none' ||
     value === 'low' ||
     value === 'medium' ||
-    value === 'high'
+    value === 'high' ||
+    value === 'max'
   ) {
-    return value
-  }
-  if (value === 'max' && process.env.USER_TYPE === 'ant') {
     return value
   }
   return undefined
@@ -178,10 +171,6 @@ export function resolveAppliedEffort(
   }
   const resolved =
     envOverride ?? appStateEffortValue ?? getDefaultEffortForModel(model)
-  // API rejects 'max' on non-Opus-4.6 models — downgrade to 'high'.
-  if (resolved === 'max' && !modelSupportsMaxEffort(model)) {
-    return 'high'
-  }
   return resolved
 }
 
@@ -252,7 +241,7 @@ export function getEffortLevelDescription(level: EffortLevel): string {
     case 'high':
       return 'Comprehensive implementation with extensive testing and documentation'
     case 'max':
-      return 'Maximum capability with deepest reasoning (Opus 4.6 only)'
+      return 'Maximum capability with deepest reasoning'
   }
 }
 
@@ -299,53 +288,8 @@ export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
 
 // @[MODEL LAUNCH]: Update the default effort levels for new models
 export function getDefaultEffortForModel(
-  model: string,
+  _model: string,
 ): EffortValue | undefined {
-  if (process.env.USER_TYPE === 'ant') {
-    const config = getAntModelOverrideConfig()
-    const isDefaultModel =
-      config?.defaultModel !== undefined &&
-      model.toLowerCase() === config.defaultModel.toLowerCase()
-    if (isDefaultModel && config?.defaultModelEffortLevel) {
-      return config.defaultModelEffortLevel
-    }
-    const antModel = resolveAntModel(model)
-    if (antModel) {
-      if (antModel.defaultEffortLevel) {
-        return antModel.defaultEffortLevel
-      }
-      if (antModel.defaultEffortValue !== undefined) {
-        return antModel.defaultEffortValue
-      }
-    }
-    // Always default ants to undefined/high
-    return undefined
-  }
-
-  // IMPORTANT: Do not change the default effort level without notifying
-  // the model launch DRI and research. Default effort is a sensitive setting
-  // that can greatly affect model quality and bashing.
-
-  // Default effort on Opus 4.6 to medium for Pro.
-  // Max/Team also get medium when the tengu_grey_step2 config is enabled.
-  if (model.toLowerCase().includes('opus-4-6')) {
-    if (isProSubscriber()) {
-      return 'medium'
-    }
-    if (
-      getOpusDefaultEffortConfig().enabled &&
-      (isMaxSubscriber() || isTeamSubscriber())
-    ) {
-      return 'medium'
-    }
-  }
-
-  // When ultrathink feature is on, default effort to medium (ultrathink bumps to high)
-  if (isUltrathinkEnabled() && modelSupportsEffort(model)) {
-    return 'medium'
-  }
-
-  // Fallback to undefined, which means we don't set an effort level. This
-  // should resolve to high effort level in the API.
-  return undefined
+  // Default all models to high effort
+  return 'high'
 }

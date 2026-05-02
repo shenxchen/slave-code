@@ -299,15 +299,19 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.1.1**
+当前版本：**SLAVE-v1.1.2**
 
 ---
 
 ## 更新日志
 
+### SLAVE-v1.1.2
+
+支持模型思考强度设置为max；优化了一些小问题。
+
 ### SLAVE-v1.1.1
 
-完成所有层级中.slave配置目录的实现
+完成所有层级中.slave配置目录的实现。
 
 ### SLAVE-v1.1.0
 
