@@ -1,4 +1,4 @@
-import { appendFile, writeFile } from 'fs/promises'
+import { appendFile, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { getProjectRoot, getSessionId } from './bootstrap/state.js'
 import { registerCleanup } from './utils/cleanupRegistry.js'
@@ -18,6 +18,8 @@ import { jsonParse, jsonStringify } from './utils/slowOperations.js'
 
 const MAX_HISTORY_ITEMS = 100
 const MAX_PASTED_CONTENT_LENGTH = 1024
+/** Maximum number of entries to keep on disk. Older entries are trimmed after each flush. */
+const MAX_HISTORY_DISK_ENTRIES = 1000
 
 /**
  * Stored paste content - either inline content or a hash reference to paste store.
@@ -317,8 +319,39 @@ async function immediateFlushHistory(): Promise<void> {
     pendingEntries = []
 
     await appendFile(historyPath, jsonLines.join(''), { mode: 0o600 })
+
+    // Trim old entries to keep the file from growing unbounded
+    await trimHistoryFile(historyPath, release)
   } catch (error) {
     logForDebugging(`Failed to write prompt history: ${error}`)
+  } finally {
+    if (release) {
+      await release()
+    }
+  }
+}
+
+/**
+ * Trim history.jsonl to the most recent MAX_HISTORY_DISK_ENTRIES lines.
+ * Runs after each flush while the lock is still held.
+ */
+async function trimHistoryFile(
+  historyPath: string,
+  release: (() => Promise<void>) | undefined,
+): Promise<void> {
+  try {
+    const content = await readFile(historyPath, 'utf-8')
+    const lines = content.split('\n').filter(l => l.trim())
+    if (lines.length <= MAX_HISTORY_DISK_ENTRIES) return
+
+    const trimmed = lines.slice(-MAX_HISTORY_DISK_ENTRIES).join('\n') + '\n'
+    await writeFile(historyPath, trimmed, { encoding: 'utf8', mode: 0o600 })
+    logForDebugging(
+      `Trimmed history.jsonl from ${lines.length} to ${MAX_HISTORY_DISK_ENTRIES} entries`,
+    )
+  } catch (error) {
+    logForDebugging(`Failed to trim history.jsonl: ${error}`)
+    // Non-critical — file stays intact, just a bit larger than desired
   } finally {
     if (release) {
       await release()

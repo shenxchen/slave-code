@@ -168,6 +168,7 @@ Slave Code 配置：
 | `/login` | 配置 API 连接 |
 | `/logout` | 登出 |
 | `/clear` | 清空对话（别名: `reset` / `new`） |
+| `/cleanup` | 清理历史数据和缓存 |
 | `/exit` | 退出 |
 
 ### 模型管理
@@ -216,6 +217,7 @@ Slave Code 配置：
 | `/cost` | 查看费用 |
 | `/usage` | 使用统计 |
 | `/stats` | 统计信息 |
+| `/cleanup` | 清理历史数据与缓存 |
 | `/theme` | 主题设置 |
 | `/color` | 颜色设置 |
 | `/vim` | Vim 模式切换 |
@@ -269,17 +271,95 @@ Slave Code 配置：
 
 ```
 ~/.slave/
-├── .claude.json          # 全局配置
-├── settings.json          # 设置
-├── settings.local.json    # 本地设置
-├── memory/                # 记忆文件
-│   ├── MEMORY.md
-│   └── logs/
-├── agents/                # Agent 定义
-├── skills/                # 自定义技能
-├── plugins/               # 插件
-├── projects/              # 项目数据
-└── sessions/              # 会话历史
+── 核心配置 ──
+├── .claude.json            # 全局配置（API key、profile、模型、项目状态）
+├── .credentials.json       # OAuth 凭证
+├── settings.json           # 用户设置（权限、钩子、清理策略）
+├── keybindings.json        # 自定义快捷键
+
+── 用户管理 ──
+├── CLAUDE.md               # 用户级记忆文件（全局指令）
+├── rules/                  # 用户级规则文件（.md，支持条件匹配）
+├── skills/                 # 用户安装的技能
+├── agents/                 # 用户自定义 Agent 定义
+├── output-styles/          # 用户自定义输出风格
+├── magic-docs/             # 自定义 Magic Docs 模板
+
+── 会话数据 ──
+├── history.jsonl           # REPL 输入历史（全局，自动裁剪上限 1000 条）  *
+├── projects/               # 项目会话数据  *
+│   └── <项目名>/
+│       ├── *.jsonl         # 对话记录
+│       ├── *.cast          # Asciicast 录制
+│       └── <sessionId>/    # 工具输出 + 子代理记录
+│           └── tool-results/
+
+── 运行时状态 ──
+├── sessions/               # 并发会话 PID 追踪  *
+├── tasks/                  # 任务状态缓存  *
+├── file-history/           # 文件检查点备份  *
+├── plans/                  # 计划文件  *
+├── debug/                  # 调试日志  *
+
+── 插件系统 ──
+├── plugins/                # 已安装插件（缓存 + 数据 + 市场清单）
+
+── 缓存与备份 ──
+├── backups/                # .claude.json 备份（自动保留最新 5 个）
+├── cache/                  # Changelog、模型能力等缓存  *
+├── shell-snapshots/        # Shell 环境快照（加速 Bash 工具启动）  *
+├── image-cache/            # 图片缓存（按会话）               *
+├── paste-cache/            # 粘贴板内容缓存                   *
+├── stats-cache.json        # 统计数据缓存                     *
+
+── 内部 / 工具 ──
+├── session-env/            # 会话环境变量钩子脚本              *
+├── computer-use.lock       # 桌面控制互斥锁
+├── .update.lock            # 自动更新锁
+├── .npm-cache-cleanup      # npm 缓存清理标记
+├── .version-cleanup        # 旧版本清理标记
+
+── 协作 / 团队 ──
+├── teams/                  # 团队收件箱（多 Agent 消息传递）
+├── uploads/                # Bridge 入站文件存储               *
+
+── 专项功能（按需） ──
+├── ide/                    # IDE 集成锁文件
+├── chrome/                 # Chrome 扩展集成
+├── local/                  # 本地安装（`claude` 二进制）
+├── remote/                 # CCR 远程容器 Token 文件
+├── agent-memory/           # 用户级 Agent 持久化记忆
+├── traces/                 # Perfetto 性能追踪
+├── telemetry/              # 遥测失败事件重试队列
+├── startup-perf/           # 启动性能分析报告
+├── usage-data/             # Insights 仪表盘分析数据
+├── dump-prompts/           # API 调试转储（prompt/response）
+├── completion.bash         # Bash 补全脚本缓存
+├── completion.zsh          # Zsh 补全脚本缓存
+└── completion.fish         # Fish 补全脚本缓存
+```
+
+> \* 标注的路径可通过 `/cleanup` 命令清理。
+
+### 项目级 `.slave/` 目录
+
+每个项目根目录下也可以有 `.slave/`（与全局 `~/.slave/` 独立）：
+
+```
+<project>/.slave/
+├── settings.json           # 项目设置（可提交到 Git）
+├── settings.local.json     # 本地项目设置（不提交）
+├── CLAUDE.md               # 项目级 CLAUDE.md
+├── rules/                  # 项目级规则文件
+├── skills/                 # 项目级技能
+├── agents/                 # 项目级 Agent 定义
+├── commands/               # 项目级命令（旧格式）
+├── output-styles/          # 项目级输出风格
+├── agent-memory/           # 项目级 Agent 记忆（可提交）
+├── agent-memory-local/     # 本地 Agent 记忆（不提交）
+├── agent-memory-snapshots/ # Agent 记忆快照
+├── worktrees/              # Git worktree 克隆
+└── scheduled_tasks.json    # 定时任务配置
 ```
 
 ### 环境变量
@@ -299,11 +379,20 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.1.2**
+当前版本：**SLAVE-v1.1.3**
 
 ---
 
 ## 更新日志
+
+### SLAVE-v1.1.3
+
+**新增 `/cleanup` 命令，支持选择性清理历史数据与缓存**
+
+- 新增 `/cleanup` 命令，支持列出和清理 `~/.slave/` 下的对话记录、项目记忆、任务缓存、Shell 快照、会话状态、文件检查点、计划文件、调试日志、会话环境变量等，同时保留 API 配置、模型设置、skills、插件等核心配置。
+- 清理项目数据时自动同步删除 `.claude.json` 中对应的 `projects` 和 `githubRepoPaths` 配置条目。
+- `--config-orphans` 可检测并清理指向已不存在目录的配置条目。
+- `history.jsonl` 新增自动裁剪机制，磁盘上限 1000 条，防止无限膨胀。
 
 ### SLAVE-v1.1.2
 
@@ -340,8 +429,16 @@ bun run version
 2. Base URL 正确：`http://localhost:11434/v1`
 3. 模型已拉取：`ollama list`
 
-### 如何完全重置配置？
+### 如何清理或重置配置？
 
 ```bash
+# 查看可清理的数据
+slave /cleanup --list
+
+# 选择性清理（保留 API 配置、skills、插件）
+slave /cleanup --all --yes
+slave /cleanup --project <项目名> --yes
+
+# 完全重置
 rm -rf ~/.slave
 ```

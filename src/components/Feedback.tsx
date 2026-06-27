@@ -343,7 +343,7 @@ export function Feedback({
             <Text>
               - Environment info:{' '}
               <Text dimColor>
-                {env.platform}, {env.terminal}, v{MACRO.VERSION}
+                {env.platform}, {env.terminal}, {MACRO.VERSION}
               </Text>
             </Text>
             {envInfo.gitState && <Text>
