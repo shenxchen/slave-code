@@ -117,11 +117,12 @@ function isClaudeProcess(pid: number, expectedExecPath: string): boolean {
       return true
     }
 
-    // Check if the command contains 'claude' or the expected exec path
+    // Check if the command contains 'slave' or 'claude' or the expected exec path
     const normalizedCommand = command.toLowerCase()
     const normalizedExecPath = expectedExecPath.toLowerCase()
 
     return (
+      normalizedCommand.includes('slave') ||
       normalizedCommand.includes('claude') ||
       normalizedCommand.includes(normalizedExecPath)
     )

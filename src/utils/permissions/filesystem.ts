@@ -306,20 +306,20 @@ export function isScratchpadEnabled(): boolean {
  */
 export function getClaudeTempDirName(): string {
   if (getPlatform() === 'windows') {
-    return 'claude'
+    return 'slave'
   }
   // Use UID to create per-user directories, preventing permission conflicts
   // when multiple users share the same /tmp directory
   const uid = process.getuid?.() ?? 0
-  return `claude-${uid}`
+  return `slave-${uid}`
 }
 
 /**
- * Returns the Claude temp directory path with symlinks resolved.
+ * Returns the Slave temp directory path with symlinks resolved.
  * Uses TMPDIR env var if set, otherwise:
- * - On Unix: /tmp/claude-{uid}/ (resolved to /private/tmp/claude-{uid}/ on macOS)
- * - On Windows: {tmpdir}/claude/ (e.g., C:\Users\{user}\AppData\Local\Temp\claude\)
- * This is a per-user temporary directory used by Claude Code for all temp files.
+ * - On Unix: /tmp/slave-{uid}/ (resolved to /private/tmp/slave-{uid}/ on macOS)
+ * - On Windows: {tmpdir}/slave/ (e.g., C:\Users\{user}\AppData\Local\Temp\slave\)
+ * This is a per-user temporary directory used by Slave Code for all temp files.
  *
  * NOTE: We resolve symlinks to ensure this path matches the resolved paths used
  * in permission checks. On macOS, /tmp is a symlink to /private/tmp, so without

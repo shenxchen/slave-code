@@ -115,7 +115,7 @@ export async function readBridgePointer(
 /**
  * Worktree-aware read for `--continue`. The REPL bridge writes its pointer
  * to `getOriginalCwd()` which EnterWorktreeTool/activeWorktreeSession can
- * mutate to a worktree path — but `claude remote-control --continue` runs
+ * mutate to a worktree path — but `slave remote-control --continue` runs
  * with `resolve('.')` = shell CWD. This fans out across git worktree
  * siblings to find the freshest pointer, matching /resume's semantics.
  *

@@ -329,9 +329,7 @@ export function registerScheduleRemoteAgentsSkill(): void {
     whenToUse:
       'When the user wants to schedule a recurring remote agent, set up automated tasks, create a cron job for Claude Code, or manage their scheduled agents/triggers.',
     userInvocable: true,
-    isEnabled: () =>
-      getFeatureValue_CACHED_MAY_BE_STALE('tengu_surreal_dali', false) &&
-      isPolicyAllowed('allow_remote_sessions'),
+    isEnabled: () => false, // Disabled in Slave Code — requires claude.ai cloud infrastructure
     allowedTools: [REMOTE_TRIGGER_TOOL_NAME, ASK_USER_QUESTION_TOOL_NAME],
     async getPromptForCommand(args: string, context: ToolUseContext) {
       if (!getClaudeAIOAuthTokens()?.accessToken) {

@@ -327,13 +327,13 @@ const externalTips: Tip[] = [
     content: async () =>
       'Run /install-github-app to tag @claude right from your Github issues and PRs',
     cooldownSessions: 10,
-    isRelevant: async () => !getGlobalConfig().githubActionSetupCount,
+    isRelevant: async () => false, // Disabled in Slave Code — Anthropic-specific feature
   },
   {
     id: 'install-slack-app',
     content: async () => 'Run /install-slack-app to use Claude in Slack',
     cooldownSessions: 10,
-    isRelevant: async () => !getGlobalConfig().slackAppInstallCount,
+    isRelevant: async () => false, // Disabled in Slave Code — Anthropic-specific feature
   },
   {
     id: 'permissions',
@@ -376,7 +376,7 @@ const externalTips: Tip[] = [
   {
     id: 'continue',
     content: async () =>
-      'Run claude --continue or claude --resume to resume a conversation',
+      'Run slave --continue or slave --resume to resume a conversation',
     cooldownSessions: 10,
     isRelevant: async () => true,
   },
@@ -439,7 +439,7 @@ const externalTips: Tip[] = [
     content: async () =>
       'Run Claude Code locally or remotely using the Claude desktop app: clau.de/desktop',
     cooldownSessions: 15,
-    isRelevant: async () => getPlatform() !== 'linux',
+    isRelevant: async () => false, // Disabled in Slave Code
   },
   {
     id: 'desktop-shortcut',
@@ -461,14 +461,14 @@ const externalTips: Tip[] = [
     content: async () =>
       'Run tasks in the cloud while you keep coding locally · clau.de/web',
     cooldownSessions: 15,
-    isRelevant: async () => true,
+    isRelevant: async () => false, // Disabled in Slave Code
   },
   {
     id: 'mobile-app',
     content: async () =>
       '/mobile to use Claude Code from the Claude app on your phone',
     cooldownSessions: 15,
-    isRelevant: async () => true,
+    isRelevant: async () => false, // Disabled in Slave Code
   },
   {
     id: 'opusplan-mode-reminder',
@@ -597,14 +597,7 @@ const externalTips: Tip[] = [
         : `You have free guest passes to share · ${claude('/passes')}`
     },
     cooldownSessions: 3,
-    isRelevant: async () => {
-      const config = getGlobalConfig()
-      if (config.hasVisitedPasses) {
-        return false
-      }
-      const { eligible } = checkCachedPassesEligibility()
-      return eligible
-    },
+    isRelevant: async () => false, // Disabled in Slave Code — Anthropic-specific feature
   },
   {
     id: 'overage-credit',
@@ -617,7 +610,7 @@ const externalTips: Tip[] = [
       return `${claude(`${amount} in extra usage, on us`)} · third-party apps · ${claude('/extra-usage')}`
     },
     cooldownSessions: 3,
-    isRelevant: async () => shouldShowOverageCreditUpsell(),
+    isRelevant: async () => false, // Disabled in Slave Code — Anthropic-specific feature
   },
   {
     id: 'feedback-command',

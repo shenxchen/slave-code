@@ -379,11 +379,24 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.1.3**
+当前版本：**SLAVE-v1.2.0**
 
 ---
 
 ## 更新日志
+
+### SLAVE-v1.2.0
+
+**隔离 Anthropic 服务依赖，优化 Slave Code 独立性**
+
+- 阻断向 Anthropic 服务器的不必要数据发送：Release Notes 改为 Slave 仓库、GrowthBook 禁用、自动更新/版本强制检查禁用、用户反馈和会话转录分享禁用、Bootstrap API 禁用、Guest Passes 禁用、WebFetch 域名检查本地化
+- 修复与原始 Claude Code 的文件系统冲突：所有临时目录改为 `slave-*` 前缀、XDG 路径（`~/.local/share/slave/` 等）、进程标题改为 `slave`、二进制名改为 `slave`
+- 修复 CLI 命令名引用：resume 提示、graceful shutdown、跨项目恢复、Bridge 消息中的 `claude` → `slave`
+- 禁用不适用的 Tip 提示（desktop/web/mobile app、guest passes、overage credit、GitHub/Slack app 安装）
+- 禁用 `scheduleRemoteAgents` skill（依赖 claude.ai 云基础设施）
+- GitHub Actions 工作流模板更新为 Slave Code 品牌
+- 清理被禁用代码中的死代码（未使用的 import、常量、schema 定义）
+- 新增 `TODO.md` 待修复问题清单
 
 ### SLAVE-v1.1.3
 
