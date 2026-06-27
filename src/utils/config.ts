@@ -842,7 +842,7 @@ export function saveGlobalConfig(
         }
         written = {
           ...config,
-          projects: removeProjectHistory(current.projects),
+          projects: removeProjectHistory(config.projects),
         }
         return written
       },
@@ -880,7 +880,7 @@ export function saveGlobalConfig(
     }
     written = {
       ...config,
-      projects: removeProjectHistory(currentConfig.projects),
+      projects: removeProjectHistory(config.projects),
     }
     saveConfig(getGlobalClaudeFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)

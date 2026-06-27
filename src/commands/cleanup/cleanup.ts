@@ -158,7 +158,6 @@ type CleanupArgs = {
   configOrphans: boolean
   all: boolean
   keepDays: number | null
-  yes: boolean
 }
 
 function parseArgs(raw: string): CleanupArgs {
@@ -178,7 +177,6 @@ function parseArgs(raw: string): CleanupArgs {
     configOrphans: false,
     all: false,
     keepDays: null,
-    yes: false,
   }
   let i = 0
   const tokens = raw
@@ -232,10 +230,6 @@ function parseArgs(raw: string): CleanupArgs {
         break
       case '--keep-days':
         args.keepDays = parseInt(tokens[++i] ?? '0', 10) || null
-        break
-      case '-y':
-      case '--yes':
-        args.yes = true
         break
     }
     i++
@@ -511,9 +505,9 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
     args.project !== null ||
     args.memoryOnly ||
     args.transcriptsOnly
+  let projectNames: string[] = []
   if (wantProjectClean) {
     const projectsDir = getProjectsDir()
-    let projectNames: string[] = []
 
     if (args.project) {
       projectNames = [args.project]
@@ -524,6 +518,12 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
       } catch {
         // no projects dir
       }
+    }
+
+    if ((args.memoryOnly || args.transcriptsOnly) && projectNames.length === 0) {
+      skipped.push(
+        `${args.memoryOnly ? '--memory-only' : '--transcripts-only'} requires --project or --all/--all-projects to specify a target`,
+      )
     }
 
     for (const name of projectNames) {
@@ -559,7 +559,8 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
     }
 
     // Also clean matching entries in .claude.json projects field
-    if (projectNames.length > 0) {
+    // Only when full project is being cleaned, not for memory-only or transcripts-only
+    if (projectNames.length > 0 && !args.memoryOnly && !args.transcriptsOnly) {
       const config = getGlobalConfig()
       if (config.projects) {
         const sanitizedNamesToRemove = new Set(projectNames)
@@ -648,7 +649,8 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
   }
 
   // Clean githubRepoPaths for removed project directories
-  if (wantProjectClean && projectNames.length > 0) {
+  // Only when full project is being cleaned, not for memory-only or transcripts-only
+  if (wantProjectClean && projectNames.length > 0 && !args.memoryOnly && !args.transcriptsOnly) {
     const config = getGlobalConfig()
     if (config.githubRepoPaths && config.projects) {
       // Map project names back to absolute paths via config.projects keys
@@ -718,48 +720,38 @@ Config cleanup:
 Options:
   --all               Clean everything (all of the above)
   --keep-days <n>     Keep entries from the last n days (default: delete all)
-  -y, --yes           Skip confirmation prompt
 
 Examples:
   /cleanup --list
-  /cleanup --all --yes
-  /cleanup --project D--slave-code --yes
-  /cleanup --all --keep-days 7 --yes`
+  /cleanup --all
+  /cleanup --project D--slave-code
+  /cleanup --all --keep-days 7`
 
 // ─── entry point ───────────────────────────────────────────────────────
 
 export const call: LocalCommandCall = async (argsStr, _context) => {
   const args = parseArgs(argsStr)
 
-  // Confirmation gate for destructive operations (unless --yes or --list)
-  if (!args.yes && !args.list) {
-    const hasTarget =
-      args.all ||
-      args.allProjects ||
-      args.project !== null ||
-      args.memoryOnly ||
-      args.transcriptsOnly ||
-      args.tasks ||
-      args.shellSnapshots ||
-      args.sessions ||
-      args.fileHistory ||
-      args.plans ||
-      args.debugLogs ||
-      args.sessionEnv ||
-      args.configOrphans
-    if (!hasTarget) {
-      return { type: 'text', value: USAGE }
-    }
-    return {
-      type: 'text',
-      value:
-        'This is a destructive operation. Add --yes to confirm.\n\n' +
-        USAGE,
-    }
-  }
-
   if (args.list) {
     return { type: 'text', value: await doList() }
+  }
+
+  const hasTarget =
+    args.all ||
+    args.allProjects ||
+    args.project !== null ||
+    args.memoryOnly ||
+    args.transcriptsOnly ||
+    args.tasks ||
+    args.shellSnapshots ||
+    args.sessions ||
+    args.fileHistory ||
+    args.plans ||
+    args.debugLogs ||
+    args.sessionEnv ||
+    args.configOrphans
+  if (!hasTarget) {
+    return { type: 'text', value: USAGE }
   }
 
   const result = await doCleanup(args)

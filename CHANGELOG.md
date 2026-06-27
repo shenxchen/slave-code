@@ -2,6 +2,15 @@
 
 All notable changes to Slave Code will be documented in this file.
 
+## 1.2.1
+
+- 修复 `saveGlobalConfig` 中 `removeProjectHistory` 使用旧 `projects` 覆盖 updater 结果导致清理无效的 bug
+- 修复 `--config-orphans` 无法真正删除 `.claude.json` 中孤儿条目的 bug
+- 修复 `/cleanup --project` 完成后 `ReferenceError: projectNames is not defined` 报错
+- 修复 `--memory-only` / `--transcripts-only` 不指定 project 目标时静默无输出的问题，新增提示
+- `--memory-only` / `--transcripts-only` 不再错误删除 `.claude.json` 中的 project 和 githubRepoPaths 条目
+- 移除 `--yes` flag，简化 cleanup 命令流程
+
 ## 1.2.0
 
 - 阻断向 Anthropic 服务器的不必要数据发送：Release Notes 改为 Slave 仓库、GrowthBook 禁用、自动更新/版本强制检查禁用、用户反馈和会话转录分享禁用、Bootstrap API 禁用、Guest Passes 禁用、WebFetch 域名检查本地化

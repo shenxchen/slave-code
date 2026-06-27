@@ -379,11 +379,22 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.2.0**
+当前版本：**SLAVE-v1.2.1**
 
 ---
 
 ## 更新日志
+
+### SLAVE-v1.2.1
+
+**修复 `/cleanup` 命令的关键 bug**
+
+- 修复 `saveGlobalConfig` 中 `removeProjectHistory` 使用旧 `projects` 覆盖 updater 结果导致清理无效的 bug
+- 修复 `--config-orphans` 无法真正删除 `.claude.json` 中孤儿条目的 bug
+- 修复 `/cleanup --project` 完成后 `ReferenceError: projectNames is not defined` 报错
+- 修复 `--memory-only` / `--transcripts-only` 不指定 project 目标时静默无输出的问题，新增提示
+- `--memory-only` / `--transcripts-only` 不再删除 `.claude.json` 中的 project 和 githubRepoPaths 条目
+- 移除 `--yes` flag，直接执行清理操作
 
 ### SLAVE-v1.2.0
 

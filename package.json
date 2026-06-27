@@ -1,6 +1,6 @@
 {
   "name": "@slave-code/cli",
-  "version": "SLAVE-v1.2.0",
+  "version": "SLAVE-v1.2.1",
   "private": true,
   "description": "Slave Code — a Claude Code fork with multi-provider support and local model compatibility.",
   "license": "SEE LICENSE IN LICENSE.md",
