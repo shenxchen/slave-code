@@ -95,7 +95,7 @@ export function CondensedLogo() {
   }
   let t6;
   if ($[9] !== truncatedVersion) {
-    t6 = <Text>{t5}{" "}<Text dimColor={true}>v{truncatedVersion}</Text></Text>;
+    t6 = <Text>{t5}{" "}<Text dimColor={true}>{truncatedVersion}</Text></Text>;
     $[9] = truncatedVersion;
     $[10] = t6;
   } else {

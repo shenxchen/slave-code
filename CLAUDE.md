@@ -18,13 +18,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 bun install          # 安装依赖
-bun run dev          # 开发启动
+bun run dev          # 开发启动（等同于 bun run start）
 bun run version      # 查看版本 (SLAVE-v1.2.1)
 bun link             # 链接为全局命令 `slave`
+bun run dev:restore-check  # 检查缺失的相对 import（src/dev-entry.ts）
 ```
 
-无 lint 和 test 脚本（代码库移除了原版工具链）。`tsconfig.json` 中 `strict: false`，类型检查不会阻止构建。
+**无编译步骤**：Bun 直接运行 TypeScript 源码，项目没有 build/bundle 流程。`tsconfig.json` 中 `strict: false`，类型检查不会阻止运行。无 lint 和 test 脚本（代码库移除了原版工具链）。
 待修复问题清单见 `TODO.md`。
+
+`src/dev-entry.ts` 是"恢复开发工作区"入口，扫描 `src/` 和 `vendor/` 中缺失的相对 import 并报告。仅当缺失 import 数为 0 时才会转发到 `main.tsx`。
 
 ## 启动流程
 
@@ -109,11 +112,52 @@ Profile 切换在 `/api-profile use` 的命令处理器中完成，**不**通过
 为避免与原版冲突，配置目录使用 `.slave/`。内部的主要配置文件仍叫 `.claude.json`。
 环境变量 `CLAUDE_CONFIG_DIR` 可覆盖此目录（尚无 `SLAVE_CONFIG_DIR`）。
 
+### Buddy 宠物系统 (`src/buddy/` + `src/commands/buddy/`)
+
+Slave Code 特有功能。终端底部的小水豚（capybara）伙伴，带有随机外观系统：
+
+- `src/buddy/types.ts` — 物种(SPECIES)、眼睛(EYES)、帽子(HATS)、稀有度(RARITIES) 等定义，使用种子 PRNG (Mulberry32) 根据用户名哈希生成确定性外观
+- `src/buddy/companion.ts` — 根据 `globalConfig.oauthAccount.displayName` 的 `Bun.hash()` 生成 companion 外观，支持 LEGENDARY/MYTHIC 等稀有度加权随机
+- `src/buddy/sprites.ts` — ASCII 精灵动画
+- `src/buddy/observer.ts` — 监听消息流，在特定时机触发 Buddy 通知
+- `src/commands/buddy/buddy.tsx` — `/buddy` 命令，展示 Buddy 信息和统计数据
+
 ### Bridge 桥接 (`src/bridge/`)
 
 由 `feature('BRIDGE_MODE')` 完全门控，外部构建中被 DCE 消除。Bridge 同时要求 `isClaudeAISubscriber()`，非 OAuth 用户无法使用。
 
+### Shims 目录 (`shims/`)
+
+7 个 stub 包，替代原版依赖中不可用的原生模块和 Anthropic 内部包：
+
+| Shim | 替代内容 |
+|------|---------|
+| `ant-claude-for-chrome-mcp` | Anthropic 内部 Chrome MCP 集成 |
+| `ant-computer-use-input` | Anthropic 内部计算机使用输入 |
+| `ant-computer-use-mcp` | Anthropic 内部计算机使用 MCP |
+| `ant-computer-use-swift` | Anthropic 内部 Swift 集成 |
+| `color-diff-napi` | 原版 `color-diff-napi` 原生模块 |
+| `modifiers-napi` | 原版 `modifiers-napi` 原生模块 |
+| `url-handler-napi` | 原版 `url-handler-napi` 原生模块 |
+
+所有 shim 版本号为 `0.0.0-restored`，导出最小空实现。新增依赖时若遇到原生模块编译失败，可能需要添加新的 shim。
+
+### Ink 导入路径
+
+所有组件通过 `src/ink.ts` 导入 Ink 框架（`import { Box, Text } from '../../ink.js'`）。该文件是 Ink 的 re-export 包装，添加了自定义组件和主题集成。**不要**直接从 `'ink'` 导入。
+
 ## 重要设计模式
+
+### React Compiler 生成代码（不可手动编辑）
+
+所有 `.tsx` 文件顶部有 `import { c as _c } from "react/compiler-runtime"`，组件内包含 `const $ = _c(N)` 和大量 `$[0]`/`$[1]` 缓存数组引用。这些是 **React Compiler (React 19) 自动生成的 memo 缓存代码**，用于提升渲染性能。
+
+**禁止手动编辑 `_c()` 调用和 `$[N]` 缓存逻辑**。这些代码有对应的原始源码在 source map 的 `sourcesContent` 字段中。修改组件逻辑时应找到先于编译器的源码版本，否则修改会在下次编译时被覆盖。实际上这个代码库的 `.tsx` 文件已经以编译后形式提交，所以修改 `$[N]` 会直接生效——但这意味着你在编辑生成的代码而非原始源码，极易出错。
+
+常见的识别特征：
+- `_temp(s => s.field)` — 是 `useAppState(s => s.field)` 的编译后形式
+- `$[0] !== x` / `$[1] = x` — 缓存比较和存储
+- 块级 `let t0, t1, ...` 变量声明 — 编译后的 JSX 元素缓存
 
 ### 特性标志 / DCE
 
@@ -147,6 +191,7 @@ if (feature('BRIDGE_MODE')) {
 | Guest Passes | `src/services/api/referral.ts` | `prefetchPassesEligibility()` 改为 no-op |
 | 远程 Agent 调度 | `src/skills/bundled/scheduleRemoteAgents.ts` | `isEnabled: () => false` |
 | WebFetch 域名检查 | `src/tools/WebFetchTool/utils.ts` | 本地处理，所有域名直接允许 |
+| Desktop 会话转移 | `src/commands/desktop/`、`src/components/DesktopHandoff.tsx`、`src/utils/desktopDeepLink.ts` | v1.2.0 遗漏，仍指向 `claude.ai` 和 `claude-dev://`（参见 TODO.md #24） |
 
 保留的 Anthropic 服务：`claude-plugins-official` 插件市场（兼容 Slave）、MCP registry。
 

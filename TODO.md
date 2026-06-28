@@ -291,7 +291,19 @@
 - **风险程度**: 低
 - **建议行动**: 如确定永不启用，可清理整个文件
 
-### 24. 内部 Slack 频道引用泄露
+### 24. /desktop 命令及相关组件是 Anthropic 遗留代码
+
+- **涉及文件**: `src/commands/desktop/index.js`、`src/components/DesktopHandoff.tsx`、`src/utils/desktopDeepLink.ts`
+- **来源**: v1.2.0 Anthropic 隔离时遗漏
+- **现状**: `/desktop` 命令将 CLI 会话转移到 Claude Desktop 桌面应用。检查本机 Claude Desktop 安装状态、通过 `claude-dev://` 深链打开桌面应用、提示用户从 `claude.ai` 下载 Claude Desktop——所有这些对 Slave Code 用户毫无意义
+- **后果**: 无功能损害，但命令仍注册在 `commands.ts:277`，指向 `claude.ai` 的下载链接和 `claude-dev://` 协议均为 Anthropic 专属
+- **风险程度**: 低（命令为按需触发，不影响正常运行）
+- **建议行动**:
+  1. 移除 `/desktop` 命令注册（`commands.ts`）
+  2. 清理 `DesktopHandoff.tsx`、`desktopDeepLink.ts` 等关联文件
+  3. 或保留框架，替换为 Slave Code 自己的桌面/远程会话功能
+
+### 25. 内部 Slack 频道引用泄露
 
 - **文件**: `src/skills/bundled/stuck.ts:44`
 - **内容**: `post to **#claude-code-feedback** (channel ID: C07VBSHV7EV)`
@@ -300,7 +312,7 @@
 - **风险程度**: 低
 - **建议行动**: 删除此行或替换为通用建议
 
-### 25. `src/utils/undercover.ts` 整个文件无意义
+### 26. `src/utils/undercover.ts` 整个文件无意义
 
 - **内容**: "Undercover mode" 是 Anthropic 内部概念（防止内部模型代号泄露到公开仓库）。全部通过 `process.env.USER_TYPE === 'ant'` 门控，外部构建中 DCE。
 - **后果**: 对 Slave Code 完全无用的代码
@@ -315,6 +327,6 @@
 |------|------|--------|
 | 高 | 4 | Shell 执行风险、process.exit 数据丢失、Token 竞争条件、NDJSON 崩溃 |
 | 中 | 8 | 错误吞噬、Key 不一致、Provider 检测、预连接、Beta header、状态管理、IDE 生命周期、GrowthBook 死代码 |
-| 低 | 13 | 废弃 API、安全存储、类型断言(TypeScript)、静默 catch、存根文件、重复代码、字符串匹配、环境变量、配置文件名、文档链接、死代码、Slack 泄露、undercover 模式 |
+| 低 | 14 | 废弃 API、安全存储、类型断言(TypeScript)、静默 catch、存根文件、重复代码、字符串匹配、环境变量、配置文件名、文档链接、死代码、/desktop 遗留、Slack 泄露、undercover 模式 |
 
 **建议修复顺序**: 先处理 4 个高风险项 → 再处理中风险项中的 5-9（与 Slave Code 多 Provider 特性直接相关）→ 最后逐步清理低风险技术债务。
