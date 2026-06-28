@@ -39,14 +39,14 @@ async function dirExists(dirPath: string): Promise<boolean> {
   }
 }
 
-async function countFiles(dirPath: string): Promise<number> {
+async function countEntries(dirPath: string): Promise<number> {
   let count = 0
   try {
     const entries = await readdir(dirPath, { withFileTypes: true })
     for (const entry of entries) {
       try {
         if (entry.isDirectory()) {
-          count += await countFiles(join(dirPath, entry.name))
+          count += 1 + await countEntries(join(dirPath, entry.name))
         } else if (entry.isFile()) {
           count++
         }
@@ -156,6 +156,7 @@ type CleanupArgs = {
   debugLogs: boolean
   sessionEnv: boolean
   configOrphans: boolean
+  caches: boolean
   all: boolean
   keepDays: number | null
 }
@@ -175,6 +176,7 @@ function parseArgs(raw: string): CleanupArgs {
     debugLogs: false,
     sessionEnv: false,
     configOrphans: false,
+    caches: false,
     all: false,
     keepDays: null,
   }
@@ -225,6 +227,9 @@ function parseArgs(raw: string): CleanupArgs {
       case '--config-orphans':
         args.configOrphans = true
         break
+      case '--caches':
+        args.caches = true
+        break
       case '--all':
         args.all = true
         break
@@ -263,8 +268,8 @@ async function listProjects(): Promise<
     if (!entry.isDirectory()) continue
     const projectPath = join(projectsDir, entry.name)
     const memPath = join(projectPath, 'memory')
-    const transcripts = await countFiles(projectPath)
-    const memFiles = await countFiles(memPath)
+    const transcripts = await countEntries(projectPath)
+    const memFiles = await countEntries(memPath)
     result.push({
       name: entry.name,
       path: projectPath,
@@ -312,10 +317,10 @@ async function doList(): Promise<string> {
 
   lines.push('── Other caches ──')
   for (const [label, dir] of categories) {
-    const files = await countFiles(dir)
+    const entries = await countEntries(dir)
     const size = await getDirSize(dir)
-    if (files > 0) {
-      lines.push(`  ${label}: ${files} files, ${formatBytes(size)}`)
+    if (entries > 0) {
+      lines.push(`  ${label}: ${entries} items, ${formatBytes(size)}`)
     }
   }
 
@@ -445,16 +450,17 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
 
   const all = args.all
 
-  // Global cache dirs — only clean the ones specifically requested
-  if (all || args.tasks) await cleanDir('tasks', tasksRootDir())
-  if (all || args.shellSnapshots) await cleanDir('shell-snapshots', shellSnapshotsDir())
-  if (all || args.sessions) await cleanDir('sessions', sessionsDir())
-  if (all || args.fileHistory) await cleanDir('file-history', fileHistoryDir())
-  if (all || args.plans) await cleanDir('plans', plansDir())
-  if (all || args.debugLogs) await cleanDir('debug-logs', debugDir())
-  if (all || args.sessionEnv) await cleanDir('session-env', sessionEnvDir())
-  // These are always cleaned with --all only (no individual flags)
-  if (all) {
+  // Global cache dirs — cleaned with --all, --caches, or individual flags
+  const cleanCaches = all || args.caches
+  if (cleanCaches || args.tasks) await cleanDir('tasks', tasksRootDir())
+  if (cleanCaches || args.shellSnapshots) await cleanDir('shell-snapshots', shellSnapshotsDir())
+  if (cleanCaches || args.sessions) await cleanDir('sessions', sessionsDir())
+  if (cleanCaches || args.fileHistory) await cleanDir('file-history', fileHistoryDir())
+  if (cleanCaches || args.plans) await cleanDir('plans', plansDir())
+  if (cleanCaches || args.debugLogs) await cleanDir('debug-logs', debugDir())
+  if (cleanCaches || args.sessionEnv) await cleanDir('session-env', sessionEnvDir())
+  // These are cleaned with --all or --caches (no individual flags)
+  if (cleanCaches) {
     await cleanDir('image-cache', imageCacheDir())
     await cleanDir('paste-cache', pasteCacheDir())
     await cleanDir('cache', cacheDir())
@@ -708,6 +714,7 @@ Project data:
   --transcripts-only  Only clean transcripts (keep memory)
 
 Global caches:
+  --caches            Clean all global caches (tasks, snapshots, sessions, etc.)
   --tasks             Clean task status cache
   --shell-snapshots   Clean shell environment snapshots
   --sessions          Clean stale session PID files
@@ -725,6 +732,7 @@ Options:
 
 Examples:
   /cleanup --list
+  /cleanup --caches
   /cleanup --all
   /cleanup --project D--slave-code
   /cleanup --all --keep-days 7`
@@ -751,7 +759,8 @@ export const call: LocalCommandCall = async (argsStr, _context) => {
     args.plans ||
     args.debugLogs ||
     args.sessionEnv ||
-    args.configOrphans
+    args.configOrphans ||
+    args.caches
   if (!hasTarget) {
     return { type: 'text', value: USAGE }
   }
