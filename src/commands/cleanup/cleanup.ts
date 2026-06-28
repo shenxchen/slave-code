@@ -343,7 +343,8 @@ async function doList(): Promise<string> {
     let orphans = 0
     let active = 0
     for (const key of Object.keys(config.projects)) {
-      if (await dirExists(key)) {
+      const projectDataPath = join(getProjectsDir(), sanitizePath(key))
+      if (await dirExists(projectDataPath)) {
         active++
       } else {
         orphans++
@@ -352,7 +353,7 @@ async function doList(): Promise<string> {
     }
     lines.push(`  ${active} active, ${orphans} orphaned`)
     if (orphans > 0) {
-      lines.push('  Use --config-orphans --yes to clean orphaned entries')
+      lines.push('  Use --config-orphans to clean orphaned entries')
     }
   } else {
     lines.push('  (no project entries)')
@@ -383,7 +384,7 @@ async function doList(): Promise<string> {
     }
     lines.push(`  ${totalPaths} total paths, ${orphanPaths} orphaned`)
     if (orphanPaths > 0) {
-      lines.push('  Use --config-orphans --yes to clean orphaned entries')
+      lines.push('  Use --config-orphans to clean orphaned entries')
     }
   }
 
@@ -587,7 +588,7 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
     }
   }
 
-  // Config orphans: clean .claude.json entries for directories that no longer exist
+  // Config orphans: clean .claude.json entries that have no corresponding project data
   if (all || args.configOrphans) {
     const config = getGlobalConfig()
 
@@ -595,7 +596,8 @@ async function doCleanup(args: CleanupArgs): Promise<string> {
     if (config.projects) {
       const orphanKeys: string[] = []
       for (const key of Object.keys(config.projects)) {
-        if (!(await dirExists(key))) {
+        const projectDataPath = join(getProjectsDir(), sanitizePath(key))
+        if (!(await dirExists(projectDataPath))) {
           orphanKeys.push(key)
         }
       }
@@ -715,7 +717,7 @@ Global caches:
   --session-env       Clean session environment directories
 
 Config cleanup:
-  --config-orphans    Remove .claude.json entries for directories that no longer exist
+  --config-orphans    Remove .claude.json entries that have no corresponding project data
 
 Options:
   --all               Clean everything (all of the above)

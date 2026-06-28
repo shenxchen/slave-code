@@ -395,6 +395,7 @@ bun run version
 - 修复 `--memory-only` / `--transcripts-only` 不指定 project 目标时静默无输出的问题，新增提示
 - `--memory-only` / `--transcripts-only` 不再删除 `.claude.json` 中的 project 和 githubRepoPaths 条目
 - 移除 `--yes` flag，直接执行清理操作
+- `--config-orphans` 孤儿判断改为检查项目数据目录是否存在（而非原工作目录），避免有磁盘路径但无 Slave 项目数据的条目被误判为活跃
 
 ### SLAVE-v1.2.0
 
