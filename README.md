@@ -10,7 +10,6 @@ Claude Code 的民间 Fork，支持多 API 后端切换和本地模型。
 - [本地模型配置](#本地模型配置)
 - [命令参考](#命令参考)
 - [核心功能](#核心功能)
-- [更新日志](#更新日志)
 
 ---
 
@@ -380,68 +379,6 @@ bun run version
 ```
 
 当前版本：**SLAVE-v1.2.1**
-
----
-
-## 更新日志
-
-### SLAVE-v1.2.1
-
-**修复 `/cleanup` 命令的关键 bug**
-
-- 修复 `saveGlobalConfig` 中 `removeProjectHistory` 使用旧 `projects` 覆盖 updater 结果导致清理无效的 bug
-- 修复 `--config-orphans` 无法真正删除 `.claude.json` 中孤儿条目的 bug
-- 修复 `/cleanup --project` 完成后 `ReferenceError: projectNames is not defined` 报错
-- 修复 `--memory-only` / `--transcripts-only` 不指定 project 目标时静默无输出的问题，新增提示
-- `--memory-only` / `--transcripts-only` 不再删除 `.claude.json` 中的 project 和 githubRepoPaths 条目
-- 移除 `--yes` flag，直接执行清理操作
-- `--config-orphans` 孤儿判断改为检查项目数据目录是否存在（而非原工作目录），避免有磁盘路径但无 Slave 项目数据的条目被误判为活跃
-
-### SLAVE-v1.2.0
-
-**隔离 Anthropic 服务依赖，优化 Slave Code 独立性**
-
-- 阻断向 Anthropic 服务器的不必要数据发送：Release Notes 改为 Slave 仓库、GrowthBook 禁用、自动更新/版本强制检查禁用、用户反馈和会话转录分享禁用、Bootstrap API 禁用、Guest Passes 禁用、WebFetch 域名检查本地化
-- 修复与原始 Claude Code 的文件系统冲突：所有临时目录改为 `slave-*` 前缀、XDG 路径（`~/.local/share/slave/` 等）、进程标题改为 `slave`、二进制名改为 `slave`
-- 修复 CLI 命令名引用：resume 提示、graceful shutdown、跨项目恢复、Bridge 消息中的 `claude` → `slave`
-- 禁用不适用的 Tip 提示（desktop/web/mobile app、guest passes、overage credit、GitHub/Slack app 安装）
-- 禁用 `scheduleRemoteAgents` skill（依赖 claude.ai 云基础设施）
-- GitHub Actions 工作流模板更新为 Slave Code 品牌
-- 清理被禁用代码中的死代码（未使用的 import、常量、schema 定义）
-- 新增 `TODO.md` 待修复问题清单
-
-### SLAVE-v1.1.3
-
-**新增 `/cleanup` 命令，支持选择性清理历史数据与缓存**
-
-- 新增 `/cleanup` 命令，支持列出和清理 `~/.slave/` 下的对话记录、项目记忆、任务缓存、Shell 快照、会话状态、文件检查点、计划文件、调试日志、会话环境变量等，同时保留 API 配置、模型设置、skills、插件等核心配置。
-- 清理项目数据时自动同步删除 `.claude.json` 中对应的 `projects` 和 `githubRepoPaths` 配置条目。
-- `--config-orphans` 可检测并清理指向已不存在目录的配置条目。
-- `history.jsonl` 新增自动裁剪机制，磁盘上限 1000 条，防止无限膨胀。
-
-### SLAVE-v1.1.2
-
-支持模型思考强度设置为max；优化了一些小问题。
-
-### SLAVE-v1.1.1
-
-完成所有层级中.slave配置目录的实现。
-
-### SLAVE-v1.1.0
-
-**修复多 API Profile 与模型管理的关键 Bug**
-
-核心问题：`customApiStorage`（多 Profile 存储）与 `globalConfig.customApiEndpoint`（旧单配置）之间存在数据不同步，导致模型切换、Profile 切换等操作后状态丢失或不一致。
-
-#### Bug 修复
-
-- **`/model` 命令选择模型后未持久化**：模型变更只更新了内存中的 `AppState`，没有同步写入 `customApiStorage`、`globalConfig` 和环境变量，导致重启后恢复为默认模型。现在通过 `onChangeAppState` 钩子自动完成三处持久化。(`src/state/onChangeAppState.ts`)
-
-- **`/api-profile use` 切换 Profile 后模型不同步**：切换 Profile 后只更新了环境变量，没有同步 `mainLoopModelOverride` 和 `globalConfig.customApiEndpoint`，导致实际 API 请求仍使用旧 Profile 的模型。现在切换时会完整同步所有状态。(`src/commands/api-profile/api-profile.ts`)
-
-- **模型选择器不读取当前 Profile 的模型列表**：`ModelPicker` 只从 `globalConfig.customApiEndpoint` 读取 `savedModels`，忽略了 `customApiStorage` 中当前 Profile 的自定义模型，导致不同 Profile 下的模型无法正确显示。现在优先从当前 Profile 读取并合并。(`src/utils/model/modelOptions.ts`)
-
-- **`/remove-model` 删除当前模型后内存不同步**：删除正在使用的模型后，没有调用 `setMainLoopModelOverride` 更新内存状态，导致后续 API 请求仍使用已删除的模型。现在会同步更新内存中的模型覆盖。(`src/commands/remove-model/remove-model.ts`)
 
 ---
 

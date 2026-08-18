@@ -4,6 +4,7 @@ All notable changes to Slave Code will be documented in this file.
 
 ## 1.2.1
 
+- 修复 WebFetch 抓取 HTML 页面时报 `Cannot find package 'turndown'` 的 bug：`package.json` 遗漏 `turndown` 依赖（HTML → Markdown 转换库），导致所有 HTML 网页抓取失败
 - 修复 `saveGlobalConfig` 中 `removeProjectHistory` 使用旧 `projects` 覆盖 updater 结果导致清理无效的 bug
 - 修复 `--config-orphans` 无法真正删除 `.claude.json` 中孤儿条目的 bug
 - 修复 `/cleanup --project` 完成后 `ReferenceError: projectNames is not defined` 报错
