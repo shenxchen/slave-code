@@ -146,6 +146,13 @@ Slave Code 特有功能。终端底部的小水豚（capybara）伙伴，带有�
 
 所有 shim 版本号为 `0.0.0-restored`，导出最小空实现。新增依赖时若遇到原生模块编译失败，可能需要添加新的 shim。
 
+### 推理强度（effort）系统 (`src/utils/effort.ts` + `src/utils/settings/types.ts`)
+
+- **优先级链**：`CLAUDE_CODE_EFFORT_LEVEL` env → AppState.effortValue → 模型默认 'high'，由 `resolveAppliedEffort()` 解析
+- **持久化不对称**：写入路径 `updateSettingsForSource()` 不校验 schema（raw JSON 直接落盘）；**读取**路径 `getInitialSettings()` 经 `SettingsSchema()` 校验（`loadSettingsFromDisk`）。因此 schema（`settings/types.ts` 的 `effortLevel` 枚举）是持久化的唯一门槛——v1.2.2 起对**所有**用户放行 `'max'`（此前仅 `USER_TYPE === 'ant'`，外部用户的 max 重启后被 `.catch(undefined)` 丢弃）
+- 写前过滤：`toPersistableEffort()`（数值 effort → undefined，仅字符串等级可持久化）；启动读取入口：`getInitialEffortSetting()`
+- 设置入口：ModelPicker（`/model`）、`/effort` 命令、EffortCallout，均走 `toPersistableEffort()` 后写入 userSettings
+
 ### Ink 导入路径
 
 所有组件通过 `src/ink.ts` 导入 Ink 框架（`import { Box, Text } from '../../ink.js'`）。该文件是 Ink 的 re-export 包装，添加了自定义组件和主题集成。**不要**直接从 `'ink'` 导入。

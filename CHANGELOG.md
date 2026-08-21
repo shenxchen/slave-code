@@ -8,6 +8,7 @@ All notable changes to Slave Code will be documented in this file.
 - 清理系统提示词中的 Anthropic 专属表述：`# Environment` 段移除 Claude 模型族 ID 与产品宣传行；ConfigTool 全局配置路径改为 `~/.slave/.claude.json`；Feedback 标题生成提示词改为多 provider 中性表述
 - 去除 git commit 的 `Co-Authored-By` 署名行与 PR 描述中的 "Generated with Claude Code" 署名：`getAttributionTexts()` 默认返回空，可通过 `settings.attribution.commit` / `settings.attribution.pr` 配置恢复
 - 新增 `SYSTEM_PROMPTS.md` 系统提示词全集文档，并将 Bash 工具提示词补全为源码全文、修复文档中与源码不一致的 27 处内容
+- 修复模型思考强度设置为 max 后重启丢失的 bug：`settings.effortLevel` 的 Zod schema 枚举仅对 ant 用户（`USER_TYPE === 'ant'`）放行 `'max'`，外部用户持久化的 max 在启动读取时被 `.catch(undefined)` 静默丢弃并回落到 high。现在所有用户均可持久化 max（`src/utils/settings/types.ts`）
 
 ## 1.2.1
 
