@@ -27,6 +27,10 @@ bun run dev:restore-check  # 检查缺失的相对 import（src/dev-entry.ts）
 **无编译步骤**：Bun 直接运行 TypeScript 源码，项目没有 build/bundle 流程。`tsconfig.json` 中 `strict: false`，类型检查不会阻止运行。无 lint 和 test 脚本（代码库移除了原版工具链）。
 待修复问题清单见 `TODO.md`。
 
+**版本变更惯例**：版本号唯一来源是 `package.json` 的 `version` 字段（`MACRO.VERSION` 注入，`SLAVE-vX.Y.Z` 格式）。发版时同步更新：`package.json` → `CHANGELOG.md`（新增 `## x.y.z` 节，中文条目）→ `README.md`（当前版本）→ `CLAUDE.md`（版本字段）→ `SYSTEM_PROMPTS.md`（头尾版本标注）。
+
+**系统提示词文档**：`SYSTEM_PROMPTS.md` 收录全部会发送给模型的提示词（第 4 章工具提示词为全文收录，其余章节收录关键内容与组装机制）。修改 `src/constants/prompts.ts`、`src/tools/*/prompt.ts` 或任何旁路提示词后应同步该文档。
+
 `src/dev-entry.ts` 是"恢复开发工作区"入口，扫描 `src/` 和 `vendor/` 中缺失的相对 import 并报告。仅当缺失 import 数为 0 时才会转发到 `main.tsx`。
 
 ## 启动流程
@@ -65,7 +69,7 @@ bun run dev:restore-check  # 检查缺失的相对 import（src/dev-entry.ts）
 
 ### 工具系统 (`src/Tool.ts` + `src/tools.ts` + `src/tools/*/`)
 
-`Tool` 抽象类定义工具接口，`tools.ts` 注册所有可用工具（40+ 个）。关键工具：`BashTool`、`FileEditTool`、`FileReadTool`、`FileWriteTool`、`GlobTool`、`GrepTool`、`AgentTool`、`SkillTool`、`WebFetchTool`、`WebSearchTool`。
+`Tool` 抽象类定义工具接口，`tools.ts` 注册所有可用工具（39 个有 prompt.ts 定义）。关键工具：`BashTool`、`FileEditTool`、`FileReadTool`、`FileWriteTool`、`GlobTool`、`GrepTool`、`AgentTool`、`SkillTool`、`WebFetchTool`、`WebSearchTool`。
 
 工具通过 `feature()` 和 `process.env.USER_TYPE === 'ant'` 条件加载。循环依赖的模块（`TeamCreateTool` 等）通过延迟 `require()` 加载。
 
@@ -189,11 +193,15 @@ if (feature('BRIDGE_MODE')) {
 | 会话转录分享 | `src/components/FeedbackSurvey/submitTranscriptShare.ts` | 同上 |
 | Bootstrap API | `src/services/api/bootstrap.ts` | `fetchBootstrapAPI()` 直接返回 null |
 | Guest Passes | `src/services/api/referral.ts` | `prefetchPassesEligibility()` 改为 no-op |
-| 远程 Agent 调度 | `src/skills/bundled/scheduleRemoteAgents.ts` | `isEnabled: () => false` |
+| 远程 Agent 调度 | ~~`src/skills/bundled/scheduleRemoteAgents.ts`~~ | v1.2.2 已删除（连同 RemoteTrigger 工具） |
 | WebFetch 域名检查 | `src/tools/WebFetchTool/utils.ts` | 本地处理，所有域名直接允许 |
 | Desktop 会话转移 | `src/commands/desktop/`、`src/components/DesktopHandoff.tsx`、`src/utils/desktopDeepLink.ts` | v1.2.0 遗漏，仍指向 `claude.ai` 和 `claude-dev://`（参见 TODO.md #24） |
 
 保留的 Anthropic 服务：`claude-plugins-official` 插件市场（兼容 Slave）、MCP registry。
+
+### 提交/PR 署名（v1.2.2 起）
+
+commit 不再带 `Co-Authored-By` 署名行，PR 描述不再带 "Generated with Claude Code"——`src/utils/attribution.ts` 的 `getAttributionTexts()` / `getEnhancedPRAttribution()` 默认返回空（已删除 transcript 统计逻辑）。这是**有意行为**，不是 bug。用户显式配置 `settings.attribution.commit` / `settings.attribution.pr` 时可恢复。影响面：BashTool 提示词、`/commit`、`/commit-push-pr` 三个调用方（模板已有空值条件，无需改动）。
 
 ### 临时目录命名
 
