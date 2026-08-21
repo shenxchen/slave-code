@@ -378,7 +378,7 @@ Slave Code 配置：
 bun run version
 ```
 
-当前版本：**SLAVE-v1.2.1**
+当前版本：**SLAVE-v1.2.2**
 
 ---
 
