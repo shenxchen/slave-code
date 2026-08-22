@@ -3,6 +3,7 @@
 // undici is lazy-required inside getProxyAgent/configureGlobalAgents to defer
 // ~1.5MB when no HTTPS_PROXY/mTLS env vars are set (the common case).
 import axios, { type AxiosInstance } from 'axios'
+import { execFileSync } from 'child_process'
 import type { LookupOptions } from 'dns'
 import type { Agent } from 'http'
 import { HttpsProxyAgent, type HttpsProxyAgentOptions } from 'https-proxy-agent'
@@ -57,21 +58,165 @@ export function getAddressFamily(options: LookupOptions): 0 | 4 | 6 {
 type EnvLike = Record<string, string | undefined>
 
 /**
+ * Windows system proxy (WinINET registry) values.
+ * Windows stores its "system proxy" toggle in HKCU Internet Settings rather
+ * than exporting it as HTTP_PROXY/HTTPS_PROXY env vars, so env-only readers
+ * never see it. This type carries the values read from the registry.
+ */
+type WindowsSystemProxy = {
+  proxy: string
+  noProxy?: string
+}
+
+const WINDOWS_INTERNET_SETTINGS_KEY =
+  'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'
+
+// Module-level cache — read the registry at most once per process (spawning
+// reg.exe is not free, and the WinINET proxy rarely changes mid-session).
+let cachedWindowsSystemProxy: WindowsSystemProxy | undefined
+let windowsSystemProxyRead = false
+
+/**
+ * Parse the registry ProxyServer value into a single proxy URL.
+ * Registry format is either:
+ *   - plain "host:port" (e.g. "127.0.0.1:7892")
+ *   - protocol-specific "http=host:port;https=host:port" (prefer the https entry)
+ *   - an already-complete URL (contains "://", rare)
+ * Returns http://<host>:<port> so HttpsProxyAgent / undici can CONNECT through it.
+ */
+export function parseWindowsProxyServer(value: string): string | undefined {
+  const v = value.trim()
+  if (!v) return undefined
+  // Already a full URL (explicit scheme, credentials, etc.)
+  if (v.includes('://')) return v
+
+  let host = v
+  const segmented = v
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (segmented.some(s => s.includes('='))) {
+    let httpsEntry: string | undefined
+    let fallback: string | undefined
+    for (const entry of segmented) {
+      const idx = entry.indexOf('=')
+      if (idx >= 0) {
+        const proto = entry.slice(0, idx).toLowerCase()
+        const val = entry.slice(idx + 1)
+        if (proto === 'https') httpsEntry = val
+        if (fallback === undefined) fallback = val
+      } else if (fallback === undefined) {
+        fallback = entry
+      }
+    }
+    host = httpsEntry ?? fallback ?? v
+  }
+
+  if (!host) return undefined
+  if (host.includes('://')) return host
+  return `http://${host}`
+}
+
+/**
+ * Convert a Windows ProxyOverride value (semicolon-separated) into a
+ * comma-separated NO_PROXY-style list compatible with shouldBypassProxy.
+ * Windows syntax quirks handled here:
+ *   - "<local>" means "all local addresses" → expanded to localhost/127.0.0.1/.local
+ *   - "*domain" / "*.domain" means "domain and subdomains" → ".domain"
+ *   - "127.*", "172.2*" etc. are IP prefix wildcards → kept as-is; the
+ *     trailing-* branch in shouldBypassProxy handles those
+ */
+export function convertWindowsProxyOverride(value: string): string {
+  return value
+    .split(';')
+    .map(e => e.trim())
+    .filter(Boolean)
+    .flatMap(e => {
+      if (e === '<local>') return ['localhost', '127.0.0.1', '.local']
+      if (e === '*') return ['*']
+      if (e.startsWith('*.')) return [e.slice(1)]
+      if (e.startsWith('*')) return [`.${e.slice(1)}`]
+      return [e]
+    })
+    .join(',')
+}
+
+/**
+ * Read the Windows system proxy from the WinINET registry (one-time cached).
+ * Returns undefined when disabled/unset, on non-win32, or when the registry
+ * read fails (reg.exe missing, restricted, etc.) — failures never break the
+ * env-var path.
+ */
+export function readWindowsSystemProxy(): WindowsSystemProxy | undefined {
+  if (process.platform !== 'win32') return undefined
+  if (windowsSystemProxyRead) return cachedWindowsSystemProxy
+  windowsSystemProxyRead = true
+
+  try {
+    // execFileSync avoids shell interpretation; args are entirely static.
+    // Single invocation dumps all values under the key.
+    const stdout = execFileSync('reg', ['query', WINDOWS_INTERNET_SETTINGS_KEY], {
+      encoding: 'utf-8',
+      timeout: 5000,
+      windowsHide: true,
+    })
+
+    const enableMatch = stdout.match(/^[ \t]*ProxyEnable[ \t]+REG_DWORD[ \t]+(\S+)/im)
+    const serverMatch = stdout.match(/^[ \t]*ProxyServer[ \t]+REG_SZ[ \t]+(.*)$/im)
+    const overrideMatch = stdout.match(/^[ \t]*ProxyOverride[ \t]+REG_SZ[ \t]+(.*)$/im)
+
+    // The registry keeps ProxyServer around even when the toggle is off — only
+    // honor it when ProxyEnable is non-zero (reg.exe shows REG_DWORD as hex by
+    // default, but may print decimal on some systems).
+    if (!enableMatch || parseInt(enableMatch[1], 16) === 0) {
+      return undefined
+    }
+    if (!serverMatch) return undefined
+
+    const proxy = parseWindowsProxyServer(serverMatch[1])
+    if (!proxy) return undefined
+
+    cachedWindowsSystemProxy = {
+      proxy,
+      noProxy: overrideMatch
+        ? convertWindowsProxyOverride(overrideMatch[1])
+        : undefined,
+    }
+    return cachedWindowsSystemProxy
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Get the active proxy URL if one is configured
  * Prefers lowercase variants over uppercase (https_proxy > HTTPS_PROXY > http_proxy > HTTP_PROXY)
- * @param env Environment variables to check (defaults to process.env for production use)
+ * Falls back to the Windows system proxy (WinINET registry) when no env var is
+ * set and process.platform === 'win32'.
+ * @param env Environment variables to check (defaults to process.env for
+ *   production use). When explicitly passed, the registry fallback is skipped
+ *   so callers (e.g. tests) get deterministic behavior.
  */
-export function getProxyUrl(env: EnvLike = process.env): string | undefined {
-  return env.https_proxy || env.HTTPS_PROXY || env.http_proxy || env.HTTP_PROXY
+export function getProxyUrl(env?: EnvLike): string | undefined {
+  const e = env ?? process.env
+  const fromEnv = e.https_proxy || e.HTTPS_PROXY || e.http_proxy || e.HTTP_PROXY
+  if (fromEnv) return fromEnv
+  if (env !== undefined) return undefined
+  return readWindowsSystemProxy()?.proxy
 }
 
 /**
  * Get the NO_PROXY environment variable value
  * Prefers lowercase over uppercase (no_proxy > NO_PROXY)
+ * Falls back to the Windows system proxy bypass list (ProxyOverride) on win32.
  * @param env Environment variables to check (defaults to process.env for production use)
  */
-export function getNoProxy(env: EnvLike = process.env): string | undefined {
-  return env.no_proxy || env.NO_PROXY
+export function getNoProxy(env?: EnvLike): string | undefined {
+  const e = env ?? process.env
+  const fromEnv = e.no_proxy || e.NO_PROXY
+  if (fromEnv) return fromEnv
+  if (env !== undefined) return undefined
+  return readWindowsSystemProxy()?.noProxy
 }
 
 /**
@@ -117,6 +262,13 @@ export function shouldBypassProxy(
         // but NOT "notexample.com"
         const suffix = pattern
         return hostname === pattern.substring(1) || hostname.endsWith(suffix)
+      }
+
+      // Windows ProxyOverride IP-prefix wildcards: "127.*", "172.2*", "10.*"
+      // (a trailing "*" after an IP prefix matches any host starting with it)
+      if (pattern.endsWith('*')) {
+        const prefix = pattern.slice(0, -1)
+        return prefix.length > 0 && hostname.startsWith(prefix)
       }
 
       // Check for exact hostname match or IP address
@@ -214,7 +366,7 @@ export const getProxyAgent = memoize((uri: string): undici.Dispatcher => {
     // Override both HTTP and HTTPS proxy with the provided URI
     httpProxy: uri,
     httpsProxy: uri,
-    noProxy: process.env.NO_PROXY || process.env.no_proxy,
+    noProxy: getNoProxy(),
   }
 
   // Set both connect and requestTls so TLS options apply to both paths:
