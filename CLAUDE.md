@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Slave Code** 是 Claude Code 的民间 Fork，支持多 API 后端切换和本地模型。
 
-- **版本**: SLAVE-v1.2.2
+- **版本**: SLAVE-v1.2.3
 - **运行时**: Bun 1.3.5+ (也兼容 Node >=24)
 - **语言**: TypeScript + React + Ink (终端 UI 框架)
 - **主要特性**: 多 API Profile 管理、本地模型支持、Buddy 宠物系统
@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 bun install          # 安装依赖
 bun run dev          # 开发启动（等同于 bun run start）
-bun run version      # 查看版本 (SLAVE-v1.2.2)
+bun run version      # 查看版本 (SLAVE-v1.2.3)
 bun link             # 链接为全局命令 `slave`
 bun run dev:restore-check  # 检查缺失的相对 import（src/dev-entry.ts）
 ```

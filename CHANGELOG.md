@@ -2,6 +2,12 @@
 
 All notable changes to Slave Code will be documented in this file.
 
+## 1.2.3
+
+- 开放权限模式：`auto`（AI 自动审批）与 `bubble`（子 agent 权限冒泡）对用户可用。解除 `TRANSCRIPT_CLASSIFIER` 的 ant 专属 DCE 门控（107 处），auto 默认 enabled（无 GrowthBook 时）、外部模型门槛放行（`modelSupportsAutoMode`）；移除 AFK beta header 发送（任何后端都不发）；`bubble` 加入权限枚举，自定义 agent frontmatter 可写 `permissionMode: bubble`
+- `bypassPermissions` 无条件进入 Shift+Tab 循环（`default → acceptEdits → plan → bypassPermissions → auto → default`），不再要求 `--dangerously-skip-permissions` 启动参数（SDK/bridge 设置路径仍保留 flag 门槛）
+- 删除 Agent 工具 `model` 参数：子 agent 一律继承父模型。此前 schema 硬编码 `sonnet/opus/haiku`，在 OpenAI/Gemini/本地后端会被解析成 Claude 模型 ID 发给错误端点；子 agent 模型现在只由 `CLAUDE_CODE_SUBAGENT_MODEL` env、agent 定义 frontmatter 或父模型决定
+
 ## 1.2.2
 
 - 删除 RemoteTrigger 工具及其配套 `/schedule` skill（依赖 claude.ai 云基础设施，Slave 不可用）
