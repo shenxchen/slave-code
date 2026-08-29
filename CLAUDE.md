@@ -73,6 +73,8 @@ bun run dev:restore-check  # 检查缺失的相对 import（src/dev-entry.ts）
 
 工具通过 `feature()` 和 `process.env.USER_TYPE === 'ant'` 条件加载。循环依赖的模块（`TeamCreateTool` 等）通过延迟 `require()` 加载。
 
+**Agent 工具无 `model` 参数**（已移除）：子 agent 一律继承父模型。子 agent 模型只由三处决定（`src/utils/model/agent.ts` 的 `getAgentModel()`）：`CLAUDE_CODE_SUBAGENT_MODEL` env（最高优先）→ agent 定义 frontmatter 的 `model`（默认 `'inherit'`）→ 父 `mainLoopModel`。
+
 ### 命令系统 (`src/commands.ts` + `src/commands/*/`)
 
 所有 `/` 命令的注册表。Slave Code 特有命令：
@@ -153,6 +155,16 @@ Slave Code 特有功能。终端底部的小水豚（capybara）伙伴，带有�
 - 写前过滤：`toPersistableEffort()`（数值 effort → undefined，仅字符串等级可持久化）；启动读取入口：`getInitialEffortSetting()`
 - 设置入口：ModelPicker（`/model`）、`/effort` 命令、EffortCallout，均走 `toPersistableEffort()` 后写入 userSettings
 
+### 权限模式（Permission Mode）
+
+7 种模式，定义分散在 `src/types/permissions.ts`（枚举）与 `src/utils/permissions/PermissionMode.ts`（标题/符号/external 映射）：
+
+- **外部可寻址**（`EXTERNAL_PERMISSION_MODES`）：`default`、`plan`、`acceptEdits`、`bypassPermissions`、`dontAsk`
+- **`auto`** — AI 自动审批：把"对话 + 待审批操作"提交给当前模型（`classifyYoloAction`，经 `sideQuery()` 走主查询分发，**后端无关**；模型默认继承主循环 `getMainLoopModel()`）判 allow/deny/ask。Slave 下默认 `enabled`（`permissionSetup.ts` 的 `AUTO_MODE_ENABLED_DEFAULT` 已从 disabled 放开），`modelSupportsAutoMode` 对外部用户放行所有模型
+- **`bubble`** — 子 agent 内部模式：子 agent 不自己弹权限询问，冒泡到父终端（`runAgent.ts` 的 `agentGetAppState`）。已加入 `PERMISSION_MODES`，自定义 agent frontmatter 可写 `permissionMode: bubble`；主会话不可切换（不在 `/config` 下拉）
+
+Shift+Tab 循环在 `getNextPermissionMode.ts`，非 ant 用户：`default → acceptEdits → plan → bypassPermissions → auto → default`。`bypassPermissions` **无条件在循环里**（无需 `--dangerously-skip-permissions`，但 SDK/bridge 设置路径仍需 flag）；`dontAsk` 不进循环。进入 bypass 后的"全部放行"由各工具 `mode === 'bypassPermissions'` 分支实现。
+
 ### Ink 导入路径
 
 所有组件通过 `src/ink.ts` 导入 Ink 框架（`import { Box, Text } from '../../ink.js'`）。该文件是 Ink 的 re-export 包装，添加了自定义组件和主题集成。**不要**直接从 `'ink'` 导入。
@@ -182,6 +194,8 @@ if (feature('BRIDGE_MODE')) {
 
 常见 flag：`BRIDGE_MODE`、`DAEMON`、`KAIROS`、`PROACTIVE`、`AGENT_TRIGGERS`。
 `process.env.USER_TYPE === 'ant'` 也用于 DCE（170+ 处），在外部构建中被常量折叠。
+
+**`TRANSCRIPT_CLASSIFIER`（auto 模式）已解锁**：该门控在源码中已被字面量 `true` 替换（100+ 处），auto 模式对所有用户可用。配套改动：`AFK_MODE_BETA_HEADER` 已置空（任何后端都不发送）、`modelSupportsAutoMode` 对外部用户放行。详见「权限模式」。`feature()` 替换后注意清理残留的未使用 `import { feature }`。
 
 ### 循环依赖解决
 

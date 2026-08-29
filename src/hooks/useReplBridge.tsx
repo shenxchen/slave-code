@@ -438,7 +438,7 @@ export function useReplBridge(messages: Message[], setMessages: (action: React.S
                   };
                 }
               }
-              if (feature('TRANSCRIPT_CLASSIFIER') && mode === 'auto' && !isAutoModeGateEnabled()) {
+              if (true && mode === 'auto' && !isAutoModeGateEnabled()) {
                 const reason = getAutoModeUnavailableReason();
                 return {
                   ok: false,
